@@ -1,0 +1,19 @@
+# Compiled executables
+start
+*.exe
+*.out
+
+# Object files
+*.o
+*.obj
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+.DS_Store

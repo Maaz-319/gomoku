@@ -1,6 +1,6 @@
 #include <iostream>
-#include <conio.h>
 #include <iomanip>
+#include <limits>
 #define rows 15
 #define cols 15
 #define TRAVERSE_BOARD for (int i = 0; i < rows; i++) for (int j = 0; j < cols; j++)
@@ -38,41 +38,165 @@ public:
         cout << "\n";
     }
 
+    void clear_screen()
+    {
+        // Cross-platform clear screen alternative
+        #ifdef _WIN32
+            system("cls");
+        #else
+            cout << "\033[2J\033[1;1H"; // ANSI escape codes
+        #endif
+    }
+
+    void pause_screen()
+    {
+        cout << "Press Enter to continue...";
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cin.get();
+    }
+
+    bool get_player_input(int &r, int &c)
+    {
+        cout << "\nPlayer " << (char)get_current_player() << ", enter move (row col): ";
+        
+        // Clear any error flags
+        if (cin.fail())
+        {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+
+        // Try to read input
+        if (!(cin >> r))
+        {
+            // Handle non-integer input or EOF
+            if (cin.eof())
+            {
+                cout << "\nInput closed. Exiting game.\n";
+                return false;
+            }
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cerr << "INVALID INPUT: Please enter integers only.\n";
+            return false;
+        }
+
+        if (!(cin >> c))
+        {
+            // Handle non-integer input for column
+            if (cin.eof())
+            {
+                cout << "\nInput closed. Exiting game.\n";
+                return false;
+            }
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cerr << "INVALID INPUT: Please enter integers only.\n";
+            return false;
+        }
+
+        // Clear remaining input on the line
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return true;
+    }
+
+    bool is_valid_move(int r, int c)
+    {
+        // Check bounds
+        if (r < 0 || r >= rows)
+        {
+            cerr << "INVALID MOVE: Row " << r << " is out of bounds (0-" << rows - 1 << ").\n";
+            return false;
+        }
+
+        if (c < 0 || c >= cols)
+        {
+            cerr << "INVALID MOVE: Column " << c << " is out of bounds (0-" << cols - 1 << ").\n";
+            return false;
+        }
+
+        // Check if cell is occupied
+        if (board[r][c] != '.')
+        {
+            cerr << "INVALID MOVE: Cell (" << r << ", " << c << ") is already occupied.\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    void make_move(int r, int c)
+    {
+        board[r][c] = this->curr_player;
+        total_moves++;
+    }
+
+    void switch_player()
+    {
+        this->curr_player = (this->curr_player == FIRST_PLAYER) ? SECOND_PLAYER : FIRST_PLAYER;
+    }
+
+    bool is_board_full()
+    {
+        return total_moves == rows * cols;
+    }
+
+    void update_game_status_after_move(int r, int c)
+    {
+        if (check_win_from(r, c))
+        {
+            this->game_status = (this->curr_player == FIRST_PLAYER) ? FIRST_WIN : SECOND_WIN;
+        }
+        else if (is_board_full())
+        {
+            this->game_status = DRAW;
+        }
+    }
+
     void handle_player_move()
     {
         int r, c;
         while (this->game_status == ONGOING)
         {
-            system("cls");
+            clear_screen();
             display_board();
-            cout << "\nPlayer " << (char)get_current_player() << ", enter move (row col): ";
-            cin >> r >> c;
 
-            if (r < 0 || r >= rows || c < 0 || c >= cols || board[r][c] != '.')
+            // Get player input with validation
+            if (!get_player_input(r, c))
             {
-                cerr << "INVALID MOVE. Try again.\n";
-                getch();
+                // If input fails (EOF or error), ask again or exit
+                if (cin.eof())
+                {
+                    this->game_status = DRAW;
+                    return;
+                }
+                pause_screen();
                 continue;
             }
 
-            board[r][c] = this->curr_player;
-            total_moves++;
-
-            if (check_win_from(r, c))
+            // Validate the move
+            if (!is_valid_move(r, c))
             {
-                this->game_status = (this->curr_player == FIRST_PLAYER) ? FIRST_WIN : SECOND_WIN;
+                pause_screen();
+                continue;
+            }
+
+            // Make the move
+            make_move(r, c);
+
+            // Check game status
+            update_game_status_after_move(r, c);
+
+            // If game ended, display final board and return
+            if (this->game_status != ONGOING)
+            {
+                clear_screen();
                 display_board();
                 return;
             }
 
-            if (total_moves == rows * cols)
-            {
-                this->game_status = DRAW;
-                display_board();
-                return;
-            }
-
-            this->curr_player = (this->curr_player == FIRST_PLAYER) ? SECOND_PLAYER : FIRST_PLAYER;
+            // Switch to next player
+            switch_player();
         }
     }
 
